@@ -1,0 +1,765 @@
+name: Build APK
+
+run-name: "APK Build"
+
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: "Sirf link paste karo (GitHub Pages / PWA URL)"
+        required: true
+      version:
+        description: "Version (khali = 1.0.0)"
+        required: false
+        default: ""
+      app_name:
+        description: "Naam badalna ho to (khali = auto)"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Repo checkout
+        uses: actions/checkout@v4
+
+      - name: Link se app ki info nikalo
+        env:
+          IN_URL: ${{ github.event.inputs.url }}
+          IN_VER: ${{ github.event.inputs.version }}
+          IN_NAME: ${{ github.event.inputs.app_name }}
+        run: |
+          python3 << 'PYEOF'
+          import os, re, json, base64, sys
+          from urllib.parse import urljoin, urlparse, unquote
+          from urllib.request import urlopen, Request
+
+          url = (os.environ.get("IN_URL") or "").strip()
+          if not url:
+              sys.exit("URL khali hai")
+          if not url.startswith("http"):
+              url = "https://" + url
+
+          def get(u, timeout=30):
+              return urlopen(Request(u, headers={"User-Agent": "Mozilla/5.0"}), timeout=timeout).read()
+
+          def data_uri_bytes(href):
+              head, b = href.split(",", 1)
+              if "base64" in head:
+                  return base64.b64decode(b)
+              return unquote(b).encode("utf-8")
+
+          text = ""
+          try:
+              text = get(url).decode("utf-8", "ignore")
+          except Exception as e:
+              print("Page fetch fail:", e)
+
+          name = ""
+          theme = "#0f172a"
+          orient = "portrait"
+          icon = False
+
+          m = re.search(r"<title[^>]*>(.*?)</title>", text, re.I | re.S)
+          if m:
+              name = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", "", m.group(1))).strip()
+
+          m = re.search(r'<meta[^>]+name=["\']?theme-color["\']?[^>]*>', text, re.I)
+          if m:
+              c = re.search(r'content=["\']?(#[0-9a-fA-F]{3,8})', m.group(0))
+              if c:
+                  theme = c.group(1)
+
+          manifest = None
+          m = re.search(r'<link[^>]+rel=["\']?manifest["\']?[^>]*>', text, re.I)
+          if m:
+              h = re.search(r'href=["\']([^"\']+)["\']', m.group(0)) or re.search(r'href=([^\s>]+)', m.group(0))
+              if h:
+                  href = h.group(1).strip()
+                  try:
+                      raw = data_uri_bytes(href) if href.startswith("data:") else get(urljoin(url, href))
+                      manifest = json.loads(raw.decode("utf-8", "ignore"))
+                      print("Manifest mila")
+                  except Exception as e:
+                      print("Manifest fail:", e)
+
+          icon_src = None
+          if manifest:
+              n = manifest.get("name") or manifest.get("short_name")
+              if n:
+                  name = str(n).strip()
+              if manifest.get("theme_color"):
+                  theme = str(manifest["theme_color"]).strip()
+              elif manifest.get("background_color"):
+                  theme = str(manifest["background_color"]).strip()
+              o = str(manifest.get("orientation", "")).lower()
+              if "landscape" in o:
+                  orient = "landscape"
+
+              best, area = None, -1
+              for ic in (manifest.get("icons") or []):
+                  src = ic.get("src")
+                  if not src:
+                      continue
+                  a = 0
+                  for s in str(ic.get("sizes", "")).split():
+                      try:
+                          a = max(a, int(s.split("x")[0]))
+                      except Exception:
+                          pass
+                  if "svg" in str(ic.get("type", "")):
+                      a = max(a, 1)
+                  if a >= area:
+                      area, best = a, src
+              icon_src = best
+
+          if not icon_src:
+              for pat in (r'<link[^>]+rel=["\']?apple-touch-icon[^>]*>',
+                          r'<link[^>]+rel=["\']?(?:shortcut )?icon["\']?[^>]*>'):
+                  m = re.search(pat, text, re.I)
+                  if m:
+                      h = re.search(r'href=["\']([^"\']+)["\']', m.group(0))
+                      if h:
+                          icon_src = h.group(1).strip()
+                          break
+
+          if icon_src:
+              try:
+                  raw = data_uri_bytes(icon_src) if icon_src.startswith("data:") else get(urljoin(url, icon_src))
+                  if raw and len(raw) > 100:
+                      open("/tmp/src_icon", "wb").write(raw)
+                      icon = True
+                      print("Icon mila")
+              except Exception as e:
+                  print("Icon fail:", e)
+
+          p = urlparse(url)
+          host = (p.netloc or "app").split(":")[0]
+          segs = [s for s in p.path.split("/") if s and not s.endswith(".html")]
+          base = segs[-1] if segs else host.split(".")[0]
+
+          if not name:
+              name = base.replace("-", " ").replace("_", " ").title()
+
+          slug = re.sub(r"[^a-z0-9]", "", base.lower())
+          if not slug:
+              slug = "webapp"
+          if slug[0].isdigit():
+              slug = "app" + slug
+
+          if (os.environ.get("IN_NAME") or "").strip():
+              name = os.environ["IN_NAME"].strip()
+
+          ver = (os.environ.get("IN_VER") or "").strip() or "1.0.0"
+
+          if not re.match(r"^#[0-9a-fA-F]{6}$", theme):
+              theme = "#0f172a"
+
+          out = {
+              "APP_NAME": name,
+              "APP_URL": url,
+              "PKG": "com.ankushnewvision." + slug,
+              "VER": ver,
+              "THEME": theme,
+              "ORIENT": orient,
+              "EXT": "true",
+              "HAS_ICON": "yes" if icon else "no",
+          }
+          with open(os.environ["GITHUB_ENV"], "a") as f:
+              for k, v in out.items():
+                  f.write("%s=%s\n" % (k, v))
+
+          print("----------------------------")
+          for k, v in out.items():
+              print(k, "=", v)
+          print("----------------------------")
+          PYEOF
+
+      - name: Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Android SDK ready
+        run: |
+          set -e
+          SDK="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$SDK" --licenses > /dev/null 2>&1 || true
+          "$SDK" "platforms;android-34" "build-tools;34.0.0" > /dev/null 2>&1 || true
+
+      - name: Android project banao
+        run: |
+          set -e
+          rm -rf android
+          mkdir -p android/app/src/main/java/com/anv/webapk
+          mkdir -p android/app/src/main/res/values
+          mkdir -p android/app/src/main/res/mipmap-anydpi-v26
+
+          cat > android/settings.gradle << 'EOF'
+          pluginManagement {
+              repositories { google(); mavenCentral(); gradlePluginPortal() }
+          }
+          dependencyResolutionManagement {
+              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+              repositories { google(); mavenCentral() }
+          }
+          rootProject.name = "webapk"
+          include ':app'
+          EOF
+
+          cat > android/gradle.properties << EOF
+          org.gradle.jvmargs=-Xmx3g
+          android.useAndroidX=true
+          android.nonTransitiveRClass=true
+          APP_ID=$PKG
+          APP_VERSION_NAME=$VER
+          APP_VERSION_CODE=${{ github.run_number }}
+          EOF
+
+          cat > android/app/build.gradle << 'EOF'
+          plugins { id 'com.android.application' version '8.5.2' }
+
+          android {
+              namespace 'com.anv.webapk'
+              compileSdk 34
+
+              defaultConfig {
+                  applicationId project.property("APP_ID")
+                  minSdk 21
+                  targetSdk 34
+                  versionCode project.property("APP_VERSION_CODE").toInteger()
+                  versionName project.property("APP_VERSION_NAME")
+              }
+
+              signingConfigs {
+                  release {
+                      storeFile file('../../keystore.jks')
+                      storePassword 'apkfactory'
+                      keyAlias 'apkfactory'
+                      keyPassword 'apkfactory'
+                  }
+              }
+
+              buildTypes {
+                  release {
+                      signingConfig signingConfigs.release
+                      minifyEnabled false
+                  }
+              }
+
+              compileOptions {
+                  sourceCompatibility JavaVersion.VERSION_17
+                  targetCompatibility JavaVersion.VERSION_17
+              }
+
+              lint { abortOnError false }
+          }
+          EOF
+
+          cat > android/app/src/main/AndroidManifest.xml << EOF
+          <?xml version="1.0" encoding="utf-8"?>
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+              <uses-permission android:name="android.permission.INTERNET" />
+              <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+              <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
+              <uses-permission android:name="android.permission.CAMERA" />
+              <uses-permission android:name="android.permission.RECORD_AUDIO" />
+              <uses-feature android:name="android.hardware.camera" android:required="false" />
+
+              <application
+                  android:allowBackup="true"
+                  android:icon="@mipmap/ic_launcher"
+                  android:roundIcon="@mipmap/ic_launcher_round"
+                  android:label="@string/app_name"
+                  android:hardwareAccelerated="true"
+                  android:usesCleartextTraffic="true"
+                  android:supportsRtl="true"
+                  android:theme="@style/AppTheme">
+
+                  <activity
+                      android:name=".MainActivity"
+                      android:exported="true"
+                      android:launchMode="singleTop"
+                      android:screenOrientation="$ORIENT"
+                      android:windowSoftInputMode="adjustResize"
+                      android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout|uiMode">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN" />
+                          <category android:name="android.intent.category.LAUNCHER" />
+                      </intent-filter>
+                  </activity>
+              </application>
+          </manifest>
+          EOF
+
+          python3 << 'PYEOF'
+          import os, html
+          def e(t): return html.escape(t, quote=True)
+          open("android/app/src/main/res/values/strings.xml", "w", encoding="utf-8").write(
+              '<?xml version="1.0" encoding="utf-8"?>\n<resources>\n'
+              '    <string name="app_name">%s</string>\n'
+              '    <string name="app_url">%s</string>\n'
+              '    <string name="open_external">%s</string>\n'
+              '</resources>\n' % (e(os.environ["APP_NAME"]), e(os.environ["APP_URL"]), e(os.environ["EXT"])))
+          open("android/app/src/main/res/values/colors.xml", "w", encoding="utf-8").write(
+              '<?xml version="1.0" encoding="utf-8"?>\n<resources>\n'
+              '    <color name="theme_color">%s</color>\n'
+              '</resources>\n' % e(os.environ["THEME"]))
+          PYEOF
+
+          cat > android/app/src/main/res/values/styles.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources>
+              <style name="AppTheme" parent="@android:style/Theme.DeviceDefault.NoActionBar">
+                  <item name="android:windowBackground">@color/theme_color</item>
+                  <item name="android:statusBarColor">@color/theme_color</item>
+              </style>
+          </resources>
+          EOF
+
+          cat > android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+              <background android:drawable="@color/theme_color" />
+              <foreground android:drawable="@mipmap/ic_fg" />
+          </adaptive-icon>
+          EOF
+
+          cp android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml \
+             android/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml
+
+          cat > android/app/src/main/java/com/anv/webapk/MainActivity.java << 'EOF'
+          package com.anv.webapk;
+
+          import android.annotation.SuppressLint;
+          import android.app.Activity;
+          import android.app.DownloadManager;
+          import android.content.ActivityNotFoundException;
+          import android.content.ContentValues;
+          import android.content.Context;
+          import android.content.Intent;
+          import android.content.pm.PackageManager;
+          import android.net.Uri;
+          import android.os.Build;
+          import android.os.Bundle;
+          import android.os.Environment;
+          import android.provider.MediaStore;
+          import android.util.Base64;
+          import android.view.KeyEvent;
+          import android.view.ViewGroup;
+          import android.webkit.CookieManager;
+          import android.webkit.GeolocationPermissions;
+          import android.webkit.JavascriptInterface;
+          import android.webkit.PermissionRequest;
+          import android.webkit.URLUtil;
+          import android.webkit.ValueCallback;
+          import android.webkit.WebChromeClient;
+          import android.webkit.WebResourceError;
+          import android.webkit.WebResourceRequest;
+          import android.webkit.WebSettings;
+          import android.webkit.WebView;
+          import android.webkit.WebViewClient;
+          import android.widget.Toast;
+
+          import java.io.File;
+          import java.io.FileOutputStream;
+          import java.io.OutputStream;
+          import java.text.SimpleDateFormat;
+          import java.util.Date;
+          import java.util.Locale;
+
+          public class MainActivity extends Activity {
+
+              private WebView web;
+              private ValueCallback<Uri[]> filePath;
+              private static final int FILE_REQ = 1001;
+              private String startUrl;
+              private String startHost = "";
+              private boolean openExternal = true;
+
+              @SuppressLint({"SetJavaScriptEnabled", "AddJavascriptInterface"})
+              @Override
+              protected void onCreate(Bundle saved) {
+                  super.onCreate(saved);
+
+                  startUrl = getString(R.string.app_url);
+                  openExternal = Boolean.parseBoolean(getString(R.string.open_external));
+                  try { startHost = Uri.parse(startUrl).getHost(); } catch (Exception ignored) { }
+                  if (startHost == null) startHost = "";
+
+                  web = new WebView(this);
+                  setContentView(web, new ViewGroup.LayoutParams(
+                          ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+
+                  WebSettings s = web.getSettings();
+                  s.setJavaScriptEnabled(true);
+                  s.setDomStorageEnabled(true);
+                  s.setDatabaseEnabled(true);
+                  s.setAllowFileAccess(true);
+                  s.setAllowContentAccess(true);
+                  s.setSupportZoom(false);
+                  s.setBuiltInZoomControls(false);
+                  s.setUseWideViewPort(true);
+                  s.setLoadWithOverviewMode(true);
+                  s.setMediaPlaybackRequiresUserGesture(false);
+                  s.setCacheMode(WebSettings.LOAD_DEFAULT);
+                  s.setUserAgentString(s.getUserAgentString() + " ANVWebAPK");
+                  if (Build.VERSION.SDK_INT >= 21) {
+                      s.setMixedContentMode(WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE);
+                  }
+
+                  CookieManager.getInstance().setAcceptCookie(true);
+                  if (Build.VERSION.SDK_INT >= 21) {
+                      CookieManager.getInstance().setAcceptThirdPartyCookies(web, true);
+                  }
+
+                  web.addJavascriptInterface(new Saver(), "ANVSaver");
+
+                  web.setWebViewClient(new WebViewClient() {
+                      @Override
+                      public boolean shouldOverrideUrlLoading(WebView v, String url) {
+                          return route(url);
+                      }
+
+                      @Override
+                      public boolean shouldOverrideUrlLoading(WebView v, WebResourceRequest req) {
+                          return route(req.getUrl().toString());
+                      }
+
+                      @Override
+                      public void onReceivedError(WebView v, WebResourceRequest req, WebResourceError err) {
+                          if (req != null && req.isForMainFrame()) {
+                              v.loadDataWithBaseURL(null, offlinePage(), "text/html", "utf-8", null);
+                          }
+                      }
+                  });
+
+                  web.setWebChromeClient(new WebChromeClient() {
+                      @Override
+                      public boolean onShowFileChooser(WebView v, ValueCallback<Uri[]> cb, FileChooserParams params) {
+                          if (filePath != null) filePath.onReceiveValue(null);
+                          filePath = cb;
+                          try {
+                              startActivityForResult(params.createIntent(), FILE_REQ);
+                          } catch (ActivityNotFoundException e) {
+                              filePath = null;
+                              return false;
+                          }
+                          return true;
+                      }
+
+                      @Override
+                      public void onGeolocationPermissionsShowPrompt(String origin, GeolocationPermissions.Callback cb) {
+                          cb.invoke(origin, true, false);
+                      }
+
+                      @Override
+                      public void onPermissionRequest(final PermissionRequest request) {
+                          runOnUiThread(new Runnable() {
+                              @Override public void run() { request.grant(request.getResources()); }
+                          });
+                      }
+                  });
+
+                  web.setDownloadListener(new android.webkit.DownloadListener() {
+                      @Override
+                      public void onDownloadStart(String url, String ua, String disp, String mime, long size) {
+                          download(url, ua, disp, mime);
+                      }
+                  });
+
+                  if (Build.VERSION.SDK_INT <= 28) askStorage();
+
+                  if (saved != null) web.restoreState(saved);
+                  else web.loadUrl(startUrl);
+              }
+
+              private boolean route(String url) {
+                  if (url == null) return false;
+                  String u = url.toLowerCase(Locale.US);
+
+                  if (u.startsWith("tel:") || u.startsWith("mailto:") || u.startsWith("sms:")
+                          || u.startsWith("whatsapp:") || u.startsWith("intent:")
+                          || u.startsWith("market:") || u.startsWith("geo:")) {
+                      openOutside(url);
+                      return true;
+                  }
+                  if (u.startsWith("blob:") || u.startsWith("data:")) return false;
+
+                  String host = null;
+                  try { host = Uri.parse(url).getHost(); } catch (Exception ignored) { }
+                  if (host == null) return false;
+
+                  if (host.equalsIgnoreCase(startHost)) return false;
+
+                  if (u.contains("wa.me") || u.contains("api.whatsapp.com")) {
+                      openOutside(url);
+                      return true;
+                  }
+                  if (openExternal) { openOutside(url); return true; }
+                  return false;
+              }
+
+              private void openOutside(String url) {
+                  try {
+                      Intent i = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+                      i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                      startActivity(i);
+                  } catch (Exception e) {
+                      toast("App nahi mila");
+                  }
+              }
+
+              private void download(String url, String ua, String disp, String mime) {
+                  String name = safeName(url, disp, mime);
+                  if (url.startsWith("blob:")) { grabBlob(url, name, mime); return; }
+                  if (url.startsWith("data:")) {
+                      int c = url.indexOf(',');
+                      if (c > 0) saveBytes(Base64.decode(url.substring(c + 1), Base64.DEFAULT), name, mime);
+                      return;
+                  }
+                  try {
+                      DownloadManager.Request r = new DownloadManager.Request(Uri.parse(url));
+                      r.setMimeType(mime);
+                      r.addRequestHeader("User-Agent", ua);
+                      r.addRequestHeader("Cookie", CookieManager.getInstance().getCookie(url));
+                      r.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
+                      r.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, name);
+                      DownloadManager dm = (DownloadManager) getSystemService(Context.DOWNLOAD_SERVICE);
+                      dm.enqueue(r);
+                      toast("Download: " + name);
+                  } catch (Exception e) {
+                      toast("Download fail");
+                  }
+              }
+
+              private void grabBlob(String blobUrl, String name, String mime) {
+                  String js = "javascript:(function(){try{var x=new XMLHttpRequest();"
+                          + "x.open('GET','" + blobUrl + "',true);x.responseType='blob';"
+                          + "x.onload=function(){var r=new FileReader();r.onloadend=function(){"
+                          + "ANVSaver.save(r.result,'" + name + "','" + mime + "');};"
+                          + "r.readAsDataURL(x.response);};x.send();}catch(e){}})()";
+                  web.loadUrl(js);
+              }
+
+              private String safeName(String url, String disp, String mime) {
+                  String n = null;
+                  try { n = URLUtil.guessFileName(url, disp, mime); } catch (Exception ignored) { }
+                  if (n == null || n.startsWith("downloadfile")) {
+                      String ext = ".bin";
+                      if (mime != null) {
+                          if (mime.contains("png")) ext = ".png";
+                          else if (mime.contains("jpeg") || mime.contains("jpg")) ext = ".jpg";
+                          else if (mime.contains("pdf")) ext = ".pdf";
+                          else if (mime.contains("json")) ext = ".json";
+                          else if (mime.contains("csv")) ext = ".csv";
+                          else if (mime.contains("plain")) ext = ".txt";
+                      }
+                      n = "file_" + new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(new Date()) + ext;
+                  }
+                  return n.replace("'", "").replace("\"", "");
+              }
+
+              private void saveBytes(byte[] data, String name, String mime) {
+                  try {
+                      if (Build.VERSION.SDK_INT >= 29) {
+                          ContentValues cv = new ContentValues();
+                          cv.put(MediaStore.Downloads.DISPLAY_NAME, name);
+                          if (mime != null && mime.length() > 0) cv.put(MediaStore.Downloads.MIME_TYPE, mime);
+                          cv.put(MediaStore.Downloads.IS_PENDING, 1);
+                          Uri uri = getContentResolver().insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, cv);
+                          if (uri == null) { toast("Save fail"); return; }
+                          OutputStream os = getContentResolver().openOutputStream(uri);
+                          os.write(data);
+                          os.close();
+                          cv.clear();
+                          cv.put(MediaStore.Downloads.IS_PENDING, 0);
+                          getContentResolver().update(uri, cv, null, null);
+                      } else {
+                          File dir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
+                          if (!dir.exists()) dir.mkdirs();
+                          FileOutputStream fo = new FileOutputStream(new File(dir, name));
+                          fo.write(data);
+                          fo.close();
+                      }
+                      toast("Downloads me save: " + name);
+                  } catch (Exception e) {
+                      toast("Save fail");
+                  }
+              }
+
+              public class Saver {
+                  @JavascriptInterface
+                  public void save(final String dataUrl, final String name, final String mime) {
+                      runOnUiThread(new Runnable() {
+                          @Override public void run() {
+                              try {
+                                  int c = dataUrl.indexOf(',');
+                                  byte[] b = Base64.decode(dataUrl.substring(c + 1), Base64.DEFAULT);
+                                  saveBytes(b, name, mime);
+                              } catch (Exception e) { toast("Save fail"); }
+                          }
+                      });
+                  }
+              }
+
+              private void askStorage() {
+                  try {
+                      if (checkSelfPermission(android.Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                              != PackageManager.PERMISSION_GRANTED) {
+                          requestPermissions(new String[]{android.Manifest.permission.WRITE_EXTERNAL_STORAGE}, 2001);
+                      }
+                  } catch (Exception ignored) { }
+              }
+
+              private String offlinePage() {
+                  return "<html><head><meta name='viewport' content='width=device-width,initial-scale=1'></head>"
+                          + "<body style='background:#101418;color:#e8eaed;font-family:sans-serif;"
+                          + "display:flex;height:90vh;align-items:center;justify-content:center;text-align:center'>"
+                          + "<div><h2>Connection nahi mila</h2><p>Internet on karke wapas try karo.</p></div>"
+                          + "</body></html>";
+              }
+
+              private void toast(String m) { Toast.makeText(this, m, Toast.LENGTH_SHORT).show(); }
+
+              @Override
+              protected void onActivityResult(int req, int res, Intent data) {
+                  if (req == FILE_REQ) {
+                      if (filePath == null) return;
+                      filePath.onReceiveValue(WebChromeClient.FileChooserParams.parseResult(res, data));
+                      filePath = null;
+                      return;
+                  }
+                  super.onActivityResult(req, res, data);
+              }
+
+              @Override
+              public boolean onKeyDown(int code, KeyEvent e) {
+                  if (code == KeyEvent.KEYCODE_BACK && web != null && web.canGoBack()) {
+                      web.goBack();
+                      return true;
+                  }
+                  return super.onKeyDown(code, e);
+              }
+
+              @Override
+              protected void onSaveInstanceState(Bundle out) {
+                  super.onSaveInstanceState(out);
+                  if (web != null) web.saveState(out);
+              }
+          }
+          EOF
+
+      - name: Icon banao
+        run: |
+          set -e
+          command -v convert > /dev/null 2>&1 || sudo apt-get install -y imagemagick > /dev/null 2>&1
+
+          SRC=""
+          if [ "$HAS_ICON" = "yes" ] && [ -f /tmp/src_icon ]; then
+            if convert "/tmp/src_icon[0]" -resize 512x512 /tmp/base.png > /dev/null 2>&1; then
+              SRC=/tmp/base.png
+              echo "Site ka apna icon use ho raha hai"
+            fi
+          fi
+
+          if [ -z "$SRC" ]; then
+            LETTER=$(echo "$APP_NAME" | cut -c1 | tr 'a-z' 'A-Z')
+            convert -size 512x512 xc:"$THEME" -gravity center \
+              -pointsize 300 -fill white -annotate 0 "$LETTER" /tmp/base.png
+            SRC=/tmp/base.png
+            echo "Auto letter icon bana"
+          fi
+
+          convert "$SRC" -background "$THEME" -alpha remove -alpha off \
+            -resize 512x512 -gravity center -extent 512x512 /tmp/sq.png
+
+          for pair in mdpi:48 hdpi:72 xhdpi:96 xxhdpi:144 xxxhdpi:192; do
+            D=${pair%%:*}
+            S=${pair##*:}
+            DIR="android/app/src/main/res/mipmap-$D"
+            mkdir -p "$DIR"
+            convert /tmp/sq.png -resize "${S}x${S}!" "$DIR/ic_launcher.png"
+            convert /tmp/sq.png -resize "${S}x${S}!" \
+              \( +clone -alpha extract -threshold -1 \
+                 -negate -fill white -draw "circle $((S/2)),$((S/2)) $((S/2)),0" \) \
+              -alpha off -compose CopyOpacity -composite "$DIR/ic_launcher_round.png"
+          done
+
+          for pair in mdpi:108 hdpi:162 xhdpi:216 xxhdpi:324 xxxhdpi:432; do
+            D=${pair%%:*}
+            S=${pair##*:}
+            I=$((S * 60 / 100))
+            mkdir -p "android/app/src/main/res/mipmap-$D"
+            convert "$SRC" -background none -resize "${I}x${I}" \
+              -gravity center -extent "${S}x${S}" \
+              "android/app/src/main/res/mipmap-$D/ic_fg.png"
+          done
+
+      - name: Keystore (pehli baar banega, phir repo me save)
+        run: |
+          set -e
+          if [ ! -f keystore.jks ]; then
+            keytool -genkeypair -v \
+              -keystore keystore.jks \
+              -alias apkfactory \
+              -keyalg RSA -keysize 2048 -validity 10000 \
+              -storepass apkfactory -keypass apkfactory \
+              -dname "CN=Ankush New Vision, OU=Dev, O=Ankush New Vision, L=Pune, S=MH, C=IN"
+
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add -f keystore.jks
+            git commit -m "APK Factory: signing keystore add"
+            git push || echo "::warning::keystore push nahi hua"
+          fi
+
+      - name: Gradle setup
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.7"
+
+      - name: APK build
+        working-directory: android
+        run: gradle assembleRelease --no-daemon
+
+      - name: APK rename
+        run: |
+          set -e
+          OUT="android/app/build/outputs/apk/release/app-release.apk"
+          if [ ! -f "$OUT" ]; then
+            echo "::error::APK nahi mila"
+            exit 1
+          fi
+          mkdir -p dist
+          FINAL="dist/${APP_NAME} v${VER}.apk"
+          cp "$OUT" "$FINAL"
+          echo "FINAL_APK=$FINAL" >> "$GITHUB_ENV"
+          ls -lh "$FINAL"
+
+      - name: Artifact upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: apk
+          path: dist/*.apk
+
+      - name: Release banao
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -e
+          TAG="v${VER}-build${{ github.run_number }}"
+          gh release create "$TAG" "$FINAL_APK" \
+            -t "$APP_NAME v$VER" \
+            -n "URL: $APP_URL
+          Package: $PKG
+          Build: ${{ github.run_number }}
+
+          Phone pe download karke install karo."
