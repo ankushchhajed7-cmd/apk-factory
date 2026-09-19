@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>APK Factory</title>
+<meta name="theme-color" content="#101A2C">
+<meta name="description" content="Kisi bhi web link se signed Android APK banao aur phone pe install karo.">
+<link rel="manifest" href="data:application/manifest+json;base64,eyJuYW1lIjogIkFQSyBGYWN0b3J5IiwgInNob3J0X25hbWUiOiAiQVBLIEZhY3RvcnkiLCAic3RhcnRfdXJsIjogIi4vIiwgInNjb3BlIjogIi4vIiwgImRpc3BsYXkiOiAic3RhbmRhbG9uZSIsICJvcmllbnRhdGlvbiI6ICJwb3J0cmFpdCIsICJiYWNrZ3JvdW5kX2NvbG9yIjogIiMxMDFBMkMiLCAidGhlbWVfY29sb3IiOiAiIzEwMUEyQyIsICJpY29ucyI6IFt7InNyYyI6ICJkYXRhOmltYWdlL3BuZztiYXNlNjQsaVZCT1J3MEtHZ29BQUFBTlNVaEVVZ0FBQWdBQUFBSUFDQUlBQUFCN0drT3RBQUFIbVVsRVFWUjQydTNid1czQ09oekE0YVppZ0hEMUFCRkM0WUpZZ0ttWWdhbFlBSEZCaWxDV1lJVWVxa3BWUVFVYWNPMzQrODVQZW5xTy9mL0ZLYStxUS9zR1FIbmVMUUdBQUFBZ0FBQUlBQUFDQUlBQUFDQUFBQWdBQUFJQWdBQUFJQUFBQ0FBQUFnQ0FBQUFnQUFBSUFBQUNBSUFBQUNBQUFBZ0FBQUlBZ0FBQUlBQUFDQUNBQUFBZ0FBQUlBQUFDQUlBQUFDQUFBQWdBQUFJQWdBQUFJQUFBQ0FBQUFnQ0FBQUFnQUFBSUFBQUNBSUFBQUNBQUFBZ0FBQUlBZ0FBQUlBQUFDQUNBQUFBZ0FBQUlBQUFDQUlBQUFDQUFBQWdBQUFJQWdBQUFJQUFBQ0FBQUFnQ0FBQUFnQUFBSUFBQUNBSUFBQUNBQUFBZ0FBQUlBZ0FBQUlBQUFDQUFBQWdBZ0FBQUlBQUFDQUlBQUFDQUFBQWdBQUFJQWdBQUFJQUFBQ0FBQUFnQ0FBQUFnQUFBSUFBQ3ZOckVFejNMYVRpMEN4REhibkMzQ2NGVWRXcXRnN29NU0NBQkdQOGhBS2Z3TndQUUg1MUVBc052QXFSUUE3RE53TmdVQU93eWNVQUd3dCt3dGNFNEZ3SzRDbkZZQnNKOEFaMVlBQUJBQXJ4S0FreXNBQUFnQUFBTGdGZ2s0dndJQWdBQUFJQUFBQ0FBQUFnQ0FBQUFnQUFBSUFBQUNBSUFBQUNBQUFBZ0FnQUFBSUFBQUNBQUFBZ0NBQUFBZ0FBQUlBQUFDQUlBQUFDQUFBQWdBQUFJQWdBQUFJQUFBQ0FBQUFnQ0FBQUFnQUFBSUFBQUNBSUFBQUNBQUFBZ0FnQUJZQWdBQkFFQUFBQkFBQUFRQUFBRUFRQUFBRUFBQUJBQUFBY2phYkhPMkNPRDhDZ0FBQWdDQUFMaEZBazZ1QUFBZ0FGNGxBR2RXQU93bndHa1ZBTHNLY0U0RndONENuRkFCc01NQVoxTUE3RFBBcVJRQXV3MXdIbCtwcWtOckZZWTRiYWNXQVl4K0FWQUN3TndYQUNnZ3ZjWVFXZk0zQUFBQkFFQUFBQkFBQUFRQUFBRUFRQUFBRUFBQUJBQUFBUUJBQUFBUUFBQUVBQUFCQUVBQUFCQUFBQVFBQUFFQVFBQUFFQUFBQkFBQUFRQkFBQUFRQUFBQkFFQUFBQkFBQUFRQUFBRUFRQUFBRUFBQUJBQUFBUUJBQUFBUUFBQUVBQUFCQUVBQUFCQUFBQVFBQUFFQVFBQUFFQUFBQkFBQUFRQkFBQUFRQUFBQnNBUUFBZ0NBQUFBZ0FBQUlBQUFDQUlBQUFDQUFBR1NqcWtOckZRRGNBQUFRQUFBRUFBQUJBRUFBQUJBQUFBUUFBQUVBUUFBQUVBQUFCQUFBQVFCQUFBQVFBQUFFQUFBQkFFQUFBQkFBQUFRQUFBRUFRQUFBRUFBQUJBQkFBQUFRQUFBRUFBQUJBRUFBQUJBQUFBUUFBQUVBUUFBQUVBQUFCQUNBZnpheEJGbm91NE5GSUMvTmZHa1JFbGZWb2JVSzVqNG9nUUJnOUlNTWxNTGZBRXgvc0t2ZEFIQkl3RlhBRFFEVEgreHpBUUJBQVBCYUJIYTdBT0E4Z0QwdkFBQUlBRjZGd000WEFBQUVBQUFCd0MwWTdIOEJBRUFBQUJBQUFBUUFBQUVBUUFBQUVBQUFCQUFBQVFCQUFBQVFBQUFFQUFBQkFCQUFBQVFBQUFFQVFBQUFFQUFBQkFBQUFRQkFBQUFRQUFBRUFBQUJBRUFBQUJBQUFBUUFBQUVBUUFBQUVBQUFCQUFBQVFCQUFBQVFBQUFFQUFBQkFCQUFTd0FnQUFBSUFBQUNBSUFBQUNBQUFBZ0FBQUlBZ0FBQUlBQUFDQUFBQWdDQUFBQWdBQUFJQUFBQ0FJQUFBQ0FBQUFoQXZwcjUwaUpnL3lNQUFBZ0FBQUxnRmd4MlBnSUFnQUI0RlFKN0hnRndIc0J1UndBQUVBQ3ZSV0NmODZ1cURxMVZTRTNmSFN3Q1JqOXVBTTRKMk5XNEFiZ0tnTkdQQUNnQm1Qc0lBQUIvNFc4QUFBSUFnQUFBSUFBQUNBQUFBZ0NBQUFBZ0FBQUlBQUFDQUlBQUFDQUFBQWdBQUFJQWdBQUFJQUFBQ0FBQUFnQ0FBQUFnQUFBSUFBQUNBSUFBQUNBQUFDV2JXQUtHNjd1RFJZaXZtUzh0QWtOVWRXaXRBdWErRWlBQVlPNHJBYVh3TndCTWYwOEhOd0F3WEZ3RmNBTUEwOS96UWdEQU5QSFVFQURNRVR3N0JBQVRCRThRQWNEc3dITWtTLzVQWUo1anNWcGJoSmlPKzUxRllDQS9BMlhRYTZPNW4wc0ovRENVU3o0Qllmb1hjZmZ5SVFnQklQYmN3Yk5BQURCeDhFUVFBTkoyODF1QldaTnBBM3dGNGdlL0FtSnNiNW92L1hsTTR2LzVpOVhhcjRNUUFFb1VZZlo5L2l2Y2dSZ0huNER3bGNEelJRRGdscFRmZkdOKytrajVNNHZiQ1FJQWdBQUFJQUNNV014UEh6NnpJQUFBWk16UFFCbmJKYURrL3c4QUJBQVpBRzd6Q1FoQUFBQVFBQUFFQUFBQkFFQUFBQkFBQUFRQUFBRUFRQUFBRUFBQUJBQUFBUUJBQUFBUUFBQUVBQUFCQUVBQUFCQUFBQVFBQUFFQVFBQUFFQUFBQkFCQUFBQVFBQUFFQUFBQkFFQUFBQkFBQUFRQUFBRUFRQUFBRUFBQUJBQUFBUUJBQUFBUUFBQUVBQUFCQUVBQUFCQUFBQVFBQUFFQVFBQUFFQUFBQkFCQUFDd0JnQUFBSUFBQUNBQUFBZ0NBQUZDazQzNW5FVHdqQklCeGF1WkxpK0Q1SWdBQUNBQjg4WVhCMDBFQUdLMmJYd2xNbVV5bnYrOC9DQURlTkQwUkVBQk1ITThDQVlEdjd2eFdZTzVrTlAxOS8rRlNWWWZXS25CVjN4M3UvNGNYcTdVVlMvYXQzL1RucW9rbElQNDhBbExnRXhCZUd6MUhCQURNRGs4UUFRQVR4TE5EQU1BYzhkUVFBRXdUUEM5R3hNOUFlY3hEdnczRjZNY05BUE1GVHdjM0FOd0dNUGNSQUpRQWN4OEJBQ0EyZndNQUVBQUFCQUFBQVFCQUFBQVFBQUFFQUFBQkFFQUFBQkFBQUFRQUFBRUFRQUFBRUFBQUJBQUFBUUJBQUFBUUFBQUVBQUFCQUVBQUFCQUFBQVFBQUFFQUVBQUFCQUFBQVFCQUFBQVFBQUFFQUFBQkFFQUFBQkFBQUFRQUFBRUFRQUFBRUFBQUJBQUFBUUJBQUFBUUFBQUVBQUFCQUVBQUFCQUFBQVFBQUFFQUVBQkxBQ0FBQUFnQUFBSUFnQUFBSUFBQUNBQUFBZ0NBQUFBZ0FBQUlBQUNwK0FDdHVTSWpCL295TlFBQUFBQkpSVTVFcmtKZ2dnPT0iLCAic2l6ZXMiOiAiNTEyeDUxMiIsICJ0eXBlIjogImltYWdlL3BuZyIsICJwdXJwb3NlIjogImFueSJ9LCB7InNyYyI6ICJkYXRhOmltYWdlL3BuZztiYXNlNjQsaVZCT1J3MEtHZ29BQUFBTlNVaEVVZ0FBQWdBQUFBSUFDQUlBQUFCN0drT3RBQUFIbVVsRVFWUjQydTNid1czQ09oekE0YVppZ0hEMUFCRkM0WUpZZ0ttWWdhbFlBSEZCaWxDV1lJVWVxa3BWUVFVYWNPMzQrODVQZW5xTy9mL0ZLYStxUS9zR1FIbmVMUUdBQUFBZ0FBQUlBQUFDQUlBQUFDQUFBQWdBQUFJQWdBQUFJQUFBQ0FBQUFnQ0FBQUFnQUFBSUFBQUNBSUFBQUNBQUFBZ0FBQUlBZ0FBQUlBQUFDQUNBQUFBZ0FBQUlBQUFDQUlBQUFDQUFBQWdBQUFJQWdBQUFJQUFBQ0FBQUFnQ0FBQUFnQUFBSUFBQUNBSUFBQUNBQUFBZ0FBQUlBZ0FBQUlBQUFDQUNBQUFBZ0FBQUlBQUFDQUlBQUFDQUFBQWdBQUFJQWdBQUFJQUFBQ0FBQUFnQ0FBQUFnQUFBSUFBQUNBSUFBQUNBQUFBZ0FBQUlBZ0FBQUlBQUFDQUFBQWdBZ0FBQUlBQUFDQUlBQUFDQUFBQWdBQUFJQWdBQUFJQUFBQ0FBQUFnQ0FBQUFnQUFBSUFBQ3ZOckVFejNMYVRpMEN4REhibkMzQ2NGVWRXcXRnN29NU0NBQkdQOGhBS2Z3TndQUUg1MUVBc052QXFSUUE3RE53TmdVQU93eWNVQUd3dCt3dGNFNEZ3SzRDbkZZQnNKOEFaMVlBQUJBQXJ4S0FreXNBQUFnQUFBTGdGZ2s0dndJQWdBQUFJQUFBQ0FBQUFnQ0FBQUFnQUFBSUFBQUNBSUFBQUNBQUFBZ0FnQUFBSUFBQUNBQUFBZ0NBQUFBZ0FBQUlBQUFDQUlBQUFDQUFBQWdBQUFJQWdBQUFJQUFBQ0FBQUFnQ0FBQUFnQUFBSUFBQUNBSUFBQUNBQUFBZ0FnQUJZQWdBQkFFQUFBQkFBQUFRQUFBRUFRQUFBRUFBQUJBQUFBY2phYkhPMkNPRDhDZ0FBQWdDQUFMaEZBazZ1QUFBZ0FGNGxBR2RXQU93bndHa1ZBTHNLY0U0RndONENuRkFCc01NQVoxTUE3RFBBcVJRQXV3MXdIbCtwcWtOckZZWTRiYWNXQVl4K0FWQUN3TndYQUNnZ3ZjWVFXZk0zQUFBQkFFQUFBQkFBQUFRQUFBRUFRQUFBRUFBQUJBQUFBUUJBQUFBUUFBQUVBQUFCQUVBQUFCQUFBQVFBQUFFQVFBQUFFQUFBQkFBQUFRQkFBQUFRQUFBQkFFQUFBQkFBQUFRQUFBRUFRQUFBRUFBQUJBQUFBUUJBQUFBUUFBQUVBQUFCQUVBQUFCQUFBQVFBQUFFQVFBQUFFQUFBQkFBQUFRQkFBQUFRQUFBQnNBUUFBZ0NBQUFBZ0FBQUlBQUFDQUlBQUFDQUFBR1NqcWtOckZRRGNBQUFRQUFBRUFBQUJBRUFBQUJBQUFBUUFBQUVBUUFBQUVBQUFCQUFBQVFCQUFBQVFBQUFFQUFBQkFFQUFBQkFBQUFRQUFBRUFRQUFBRUFBQUJBQkFBQUFRQUFBRUFBQUJBRUFBQUJBQUFBUUFBQUVBUUFBQUVBQUFCQUNBZnpheEJGbm91NE5GSUMvTmZHa1JFbGZWb2JVSzVqNG9nUUJnOUlNTWxNTGZBRXgvc0t2ZEFIQkl3RlhBRFFEVEgreHpBUUJBQVBCYUJIYTdBT0E4Z0QwdkFBQUlBRjZGd000WEFBQUVBQUFCd0MwWTdIOEJBRUFBQUJBQUFBUUFBQUVBUUFBQUVBQUFCQUFBQVFCQUFBQVFBQUFFQUFBQkFCQUFBQVFBQUFFQVFBQUFFQUFBQkFBQUFRQkFBQUFRQUFBRUFBQUJBRUFBQUJBQUFBUUFBQUVBUUFBQUVBQUFCQUFBQVFCQUFBQVFBQUFFQUFBQkFCQUFTd0FnQUFBSUFBQUNBSUFBQUNBQUFBZ0FBQUlBZ0FBQUlBQUFDQUFBQWdDQUFBQWdBQUFJQUFBQ0FJQUFBQ0FBQUFoQXZwcjUwaUpnL3lNQUFBZ0FBQUxnRmd4MlBnSUFnQUI0RlFKN0hnRndIc0J1UndBQUVBQ3ZSV0NmODZ1cURxMVZTRTNmSFN3Q1JqOXVBTTRKMk5XNEFiZ0tnTkdQQUNnQm1Qc0lBQUIvNFc4QUFBSUFnQUFBSUFBQUNBQUFBZ0NBQUFBZ0FBQUlBQUFDQUlBQUFDQUFBQWdBQUFJQWdBQUFJQUFBQ0FBQUFnQ0FBQUFnQUFBSUFBQUNBSUFBQUNBQUFDV2JXQUtHNjd1RFJZaXZtUzh0QWtOVWRXaXRBdWErRWlBQVlPNHJBYVh3TndCTWYwOEhOd0F3WEZ3RmNBTUEwOS96UWdEQU5QSFVFQURNRVR3N0JBQVRCRThRQWNEc3dITWtTLzVQWUo1anNWcGJoSmlPKzUxRllDQS9BMlhRYTZPNW4wc0ovRENVU3o0Qllmb1hjZmZ5SVFnQklQYmN3Yk5BQURCeDhFUVFBTkoyODF1QldaTnBBM3dGNGdlL0FtSnNiNW92L1hsTTR2LzVpOVhhcjRNUUFFb1VZZlo5L2l2Y2dSZ0huNER3bGNEelJRRGdscFRmZkdOKytrajVNNHZiQ1FJQWdBQUFJQUNNV014UEh6NnpJQUFBWk16UFFCbmJKYURrL3c4QUJBQVpBRzd6Q1FoQUFBQVFBQUFFQUFBQkFFQUFBQkFBQUFRQUFBRUFRQUFBRUFBQUJBQUFBUUJBQUFBUUFBQUVBQUFCQUVBQUFCQUFBQVFBQUFFQVFBQUFFQUFBQkFCQUFBQVFBQUFFQUFBQkFFQUFBQkFBQUFRQUFBRUFRQUFBRUFBQUJBQUFBUUJBQUFBUUFBQUVBQUFCQUVBQUFCQUFBQVFBQUFFQVFBQUFFQUFBQkFCQUFDd0JnQUFBSUFBQUNBQUFBZ0NBQUZDazQzNW5FVHdqQklCeGF1WkxpK0Q1SWdBQUNBQjg4WVhCMDBFQUdLMmJYd2xNbVV5bnYrOC9DQURlTkQwUkVBQk1ITThDQVlEdjd2eFdZTzVrTlAxOS8rRlNWWWZXS25CVjN4M3UvNGNYcTdVVlMvYXQzL1RucW9rbElQNDhBbExnRXhCZUd6MUhCQURNRGs4UUFRQVR4TE5EQU1BYzhkUVFBRXdUUEM5R3hNOUFlY3hEdnczRjZNY05BUE1GVHdjM0FOd0dNUGNSQUpRQWN4OEJBQ0EyZndNQUVBQUFCQUFBQVFCQUFBQVFBQUFFQUFBQkFFQUFBQkFBQUFRQUFBRUFRQUFBRUFBQUJBQUFBUUJBQUFBUUFBQUVBQUFCQUVBQUFCQUFBQVFBQUFFQUVBQUFCQUFBQVFCQUFBQVFBQUFFQUFBQkFFQUFBQkFBQUFRQUFBRUFRQUFBRUFBQUJBQUFBUUJBQUFBUUFBQUVBQUFCQUVBQUFCQUFBQVFBQUFFQUVBQkxBQ0FBQUFnQUFBSUFnQUFBSUFBQUNBQUFBZ0NBQUFBZ0FBQUlBQUNwK0FDdHVTSWpCL295TlFBQUFBQkpSVTVFcmtKZ2dnPT0iLCAic2l6ZXMiOiAiMTkyeDE5MiIsICJ0eXBlIjogImltYWdlL3BuZyJ9XX0=">
+<link rel="icon" href="data:image/png;base64,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">
+<link rel="apple-touch-icon" href="data:image/png;base64,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">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#101A2C;
+  --panel:#17243B;
+  --line:#243652;
+  --amber:#E8A33D;
+  --green:#4FB477;
+  --red:#E06A5B;
+  --text:#EAF0FA;
+  --muted:#8FA2BF;
+  --radius:14px;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px);-webkit-text-size-adjust:100%}
+body{
+  margin:0;background:var(--ink);color:var(--text);
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  font-size:16px;line-height:1.5;
+}
+h1,h2,.display{font-family:"Space Grotesk",system-ui,sans-serif;font-weight:700;letter-spacing:-.01em}
+.wrap{max-width:560px;margin:0 auto;padding:18px 16px 56px}
+
+header{display:flex;align-items:center;gap:12px;margin-bottom:22px}
+header img{width:38px;height:38px;border-radius:10px}
+header h1{font-size:21px;margin:0;flex:1}
+.iconbtn{
+  background:var(--panel);border:1px solid var(--line);color:var(--text);
+  width:42px;height:42px;border-radius:12px;font-size:19px;cursor:pointer;
+}
+.iconbtn:focus-visible,input:focus-visible,button:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+
+.stage{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:18px}
+label{display:block;font-size:14px;color:var(--muted);margin-bottom:8px}
+input{
+  width:100%;background:var(--ink);border:1px solid var(--line);color:var(--text);
+  border-radius:11px;padding:14px;font-size:16px;font-family:inherit;
+}
+input::placeholder{color:#5D7292}
+
+.go{
+  width:100%;margin-top:14px;padding:17px;border:0;border-radius:12px;
+  background:var(--amber);color:#1A1204;font-size:17px;font-weight:700;
+  font-family:"Space Grotesk",system-ui,sans-serif;cursor:pointer;
+}
+.go:disabled{opacity:.45;cursor:default}
+
+details{margin-top:14px}
+summary{color:var(--muted);font-size:14px;cursor:pointer;list-style:none}
+summary::-webkit-details-marker{display:none}
+summary::before{content:"+ ";color:var(--amber)}
+details[open] summary::before{content:"– "}
+.two{display:flex;gap:10px;margin-top:12px}
+.two>div{flex:1}
+
+.run{margin-top:16px;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;display:none}
+.run.on{display:block}
+.runtop{display:flex;align-items:center;gap:10px}
+.dot{width:11px;height:11px;border-radius:50%;background:var(--amber);flex:none}
+.dot.spin{animation:pulse 1.1s ease-in-out infinite}
+.dot.ok{background:var(--green);animation:none}
+.dot.bad{background:var(--red);animation:none}
+@keyframes pulse{50%{opacity:.25}}
+@media (prefers-reduced-motion:reduce){.dot.spin{animation:none}}
+.runtop strong{flex:1;font-weight:500}
+.clock{color:var(--muted);font-size:14px;font-variant-numeric:tabular-nums}
+.note{margin:10px 0 0;font-size:14px;color:var(--muted)}
+.note.err{color:var(--red)}
+
+h2{font-size:15px;color:var(--muted);font-weight:500;margin:28px 0 12px}
+.rel{border-top:1px solid var(--line);padding:15px 0;display:flex;align-items:center;gap:12px}
+.rel:first-of-type{border-top:0}
+.rel .meta{flex:1;min-width:0}
+.rel .name{font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rel .sub{font-size:13px;color:var(--muted)}
+.get{
+  flex:none;background:transparent;border:1.5px solid var(--amber);color:var(--amber);
+  padding:10px 16px;border-radius:11px;font-size:15px;font-weight:600;text-decoration:none;
+  font-family:"Space Grotesk",system-ui,sans-serif;
+}
+.fresh .get{background:var(--amber);color:#1A1204}
+.empty{color:var(--muted);font-size:14px;padding:12px 0}
+
+dialog{
+  border:0;padding:0;background:transparent;width:100%;max-width:560px;
+}
+dialog::backdrop{background:rgba(8,13,22,.72)}
+.sheet{
+  background:var(--panel);border:1px solid var(--line);border-radius:16px;
+  padding:20px;margin:16px;
+}
+.sheet h2{margin:0 0 16px;color:var(--text);font-size:18px;font-family:"Space Grotesk",system-ui,sans-serif;font-weight:700}
+.field{margin-bottom:14px}
+.help{font-size:13px;color:var(--muted);margin:-4px 0 16px}
+.help a{color:var(--amber)}
+.row{display:flex;gap:10px;margin-top:6px}
+.row button{flex:1;padding:14px;border-radius:12px;font-size:16px;font-family:inherit;cursor:pointer}
+.save{background:var(--amber);border:0;color:#1A1204;font-weight:700}
+.close{background:transparent;border:1px solid var(--line);color:var(--text)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <img src="data:image/png;base64,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" alt="">
+    <h1>APK Factory</h1>
+    <button class="iconbtn" id="gear" aria-label="Settings">⚙</button>
+  </header>
+
+  <div class="stage">
+    <label for="url">App ka link</label>
+    <input id="url" type="url" inputmode="url" autocomplete="off"
+           placeholder="https://ankushchhajed7-cmd.github.io/...">
+    <button class="go" id="go">APK banao</button>
+
+    <details>
+      <summary>Naam ya version badalna hai</summary>
+      <div class="two">
+        <div>
+          <label for="name">Naam</label>
+          <input id="name" placeholder="auto">
+        </div>
+        <div>
+          <label for="ver">Version</label>
+          <input id="ver" placeholder="1.0.0">
+        </div>
+      </div>
+    </details>
+  </div>
+
+  <div class="run" id="run">
+    <div class="runtop">
+      <span class="dot spin" id="dot"></span>
+      <strong id="state">Build shuru ho raha hai</strong>
+      <span class="clock" id="clock">0:00</span>
+    </div>
+    <p class="note" id="note">GitHub pe project ban raha hai, 4–6 minute lagte hain.</p>
+  </div>
+
+  <h2>Ban chuke APK</h2>
+  <div id="list"><p class="empty">Abhi kuch nahi. Upar link daal ke shuru karo.</p></div>
+</div>
+
+<dialog id="cfg">
+  <form method="dialog" class="sheet">
+    <h2>Settings</h2>
+    <div class="field">
+      <label for="c_owner">GitHub username</label>
+      <input id="c_owner">
+    </div>
+    <div class="field">
+      <label for="c_repo">Factory repo</label>
+      <input id="c_repo">
+    </div>
+    <div class="field">
+      <label for="c_token">Personal access token</label>
+      <input id="c_token" type="password" placeholder="ghp_...">
+    </div>
+    <p class="help">
+      Token sirf is phone me save hota hai, kahin bheja nahi jata.
+      <a href="https://github.com/settings/tokens/new?scopes=repo,workflow&description=APK+Factory" target="_blank" rel="noopener">Naya token banao</a>
+      — <em>repo</em> aur <em>workflow</em> dono tick karna.
+    </p>
+    <div class="row">
+      <button class="close" value="cancel" type="submit">Band karo</button>
+      <button class="save" id="save" value="save" type="submit">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+const $ = s => document.querySelector(s);
+const KEY = 'apkfactory.cfg';
+const DEF = { owner:'', repo:'apk-factory', wf:'build-apk.yml', ref:'main', token:'' };
+let cfg = Object.assign({}, DEF, JSON.parse(localStorage.getItem(KEY) || '{}'));
+
+let timer = null, poller = null, t0 = 0;
+
+function saveCfg(){ localStorage.setItem(KEY, JSON.stringify(cfg)); }
+
+async function gh(path, opts){
+  opts = opts || {};
+  const res = await fetch('https://api.github.com' + path, Object.assign({}, opts, {
+    headers: Object.assign({
+      'Accept':'application/vnd.github+json',
+      'X-GitHub-Api-Version':'2022-11-28',
+      'Authorization':'Bearer ' + cfg.token
+    }, opts.headers || {})
+  }));
+  if (res.status === 401) throw new Error('Token galat hai ya expire ho gaya. Settings me naya daalo.');
+  if (res.status === 403) throw new Error('Token me repo aur workflow permission nahi hai.');
+  if (res.status === 404) throw new Error('Repo ya workflow nahi mila. Settings check karo.');
+  if (!res.ok) throw new Error('GitHub ne mana kiya (' + res.status + ')');
+  return res.status === 204 ? null : res.json();
+}
+
+function show(state, note, kind){
+  $('#run').classList.add('on');
+  $('#state').textContent = state;
+  $('#note').textContent = note || '';
+  $('#note').className = 'note' + (kind === 'bad' ? ' err' : '');
+  $('#dot').className = 'dot ' + (kind || 'spin');
+}
+
+function startClock(){
+  t0 = Date.now();
+  clearInterval(timer);
+  timer = setInterval(() => {
+    const s = Math.floor((Date.now() - t0) / 1000);
+    $('#clock').textContent = Math.floor(s/60) + ':' + String(s%60).padStart(2,'0');
+  }, 1000);
+}
+function stopClock(){ clearInterval(timer); }
+
+async function build(){
+  const url = $('#url').value.trim();
+  if (!/^https?:\/\/.+/.test(url)) {
+    show('Link adhoora hai', 'Poora link daalo, https:// se shuru hota hua.', 'bad');
+    return;
+  }
+  if (!cfg.token || !cfg.owner) { openCfg(); return; }
+
+  $('#go').disabled = true;
+  clearInterval(poller);
+  startClock();
+  show('Build shuru ho raha hai', 'GitHub ko request bheji ja rahi hai.');
+
+  const since = Date.now() - 90000;
+  try {
+    await gh('/repos/' + cfg.owner + '/' + cfg.repo + '/actions/workflows/' + cfg.wf + '/dispatches', {
+      method:'POST',
+      body: JSON.stringify({ ref: cfg.ref, inputs: {
+        url: url,
+        version: $('#ver').value.trim(),
+        app_name: $('#name').value.trim()
+      }})
+    });
+  } catch (e) {
+    stopClock();
+    $('#go').disabled = false;
+    show('Shuru nahi ho paya', e.message, 'bad');
+    return;
+  }
+
+  show('Queue me hai', 'GitHub machine allot kar raha hai.');
+  poller = setInterval(() => check(since), 5000);
+  setTimeout(() => check(since), 2500);
+}
+
+async function check(since){
+  let run;
+  try {
+    const d = await gh('/repos/' + cfg.owner + '/' + cfg.repo + '/actions/runs?per_page=10');
+    run = (d.workflow_runs || []).find(r =>
+      r.event === 'workflow_dispatch' && new Date(r.created_at).getTime() >= since);
+  } catch (e) {
+    return;
+  }
+  if (!run) return;
+
+  if (run.status === 'queued') {
+    show('Queue me hai', 'Machine allot ho rahi hai.');
+  } else if (run.status === 'in_progress') {
+    show('Ban raha hai', 'Android project compile ho raha hai.');
+  } else if (run.status === 'completed') {
+    clearInterval(poller);
+    stopClock();
+    $('#go').disabled = false;
+    if (run.conclusion === 'success') {
+      show('Ban gaya', 'Neeche se install kar lo.', 'ok');
+      loadReleases(true);
+    } else {
+      show('Build fail hua', 'GitHub Actions me log kholke dekho kaunsa step atka.', 'bad');
+    }
+  }
+}
+
+function ago(iso){
+  const m = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+  if (m < 1) return 'abhi';
+  if (m < 60) return m + ' min pehle';
+  const h = Math.round(m / 60);
+  if (h < 24) return h + ' ghante pehle';
+  return Math.round(h / 24) + ' din pehle';
+}
+
+async function loadReleases(fresh){
+  const box = $('#list');
+  if (!cfg.token || !cfg.owner) { box.innerHTML = '<p class="empty">Pehle settings me username aur token daalo.</p>'; return; }
+  let rels;
+  try {
+    rels = await gh('/repos/' + cfg.owner + '/' + cfg.repo + '/releases?per_page=8');
+  } catch (e) {
+    box.innerHTML = '<p class="empty">' + e.message + '</p>';
+    return;
+  }
+  const rows = [];
+  rels.forEach((r, i) => {
+    const apk = (r.assets || []).find(a => a.name.toLowerCase().endsWith('.apk'));
+    if (!apk) return;
+    const mb = (apk.size / 1048576).toFixed(1);
+    rows.push(
+      '<div class="rel' + (fresh && i === 0 ? ' fresh' : '') + '">' +
+        '<div class="meta">' +
+          '<div class="name">' + r.name + '</div>' +
+          '<div class="sub">' + ago(r.published_at) + ' · ' + mb + ' MB</div>' +
+        '</div>' +
+        '<a class="get" href="' + apk.browser_download_url + '" download>Install</a>' +
+      '</div>');
+  });
+  box.innerHTML = rows.length ? rows.join('') : '<p class="empty">Abhi koi APK nahi bana.</p>';
+}
+
+function openCfg(){
+  $('#c_owner').value = cfg.owner;
+  $('#c_repo').value = cfg.repo;
+  $('#c_token').value = cfg.token;
+  $('#cfg').showModal();
+}
+
+$('#gear').addEventListener('click', openCfg);
+$('#go').addEventListener('click', build);
+$('#cfg').addEventListener('close', () => {
+  if ($('#cfg').returnValue !== 'save') return;
+  cfg.owner = $('#c_owner').value.trim();
+  cfg.repo  = $('#c_repo').value.trim() || 'apk-factory';
+  cfg.token = $('#c_token').value.trim();
+  saveCfg();
+  loadReleases(false);
+});
+
+if (!cfg.owner || !cfg.token) openCfg(); else loadReleases(false);
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+</script>
+</body>
+</html>
