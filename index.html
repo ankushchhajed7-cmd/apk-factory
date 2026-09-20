@@ -100,6 +100,8 @@ h2{font-size:15px;color:var(--muted);font-weight:500;margin:28px 0 12px}
 }
 .fresh .get{background:var(--amber);color:#1A1204}
 .empty{color:var(--muted);font-size:14px;padding:12px 0}
+.keyline{margin-top:5px;font-size:14px;color:var(--amber);font-family:"Space Grotesk",system-ui,sans-serif;letter-spacing:.04em;cursor:pointer}
+.keyline .cp{color:var(--muted);font-size:12px;letter-spacing:0;margin-left:8px;text-decoration:underline}
 
 dialog{border:0;padding:0;background:transparent;width:100%;max-width:560px}
 dialog::backdrop{background:rgba(8,13,22,.72)}
@@ -174,6 +176,11 @@ dialog::backdrop{background:rgba(8,13,22,.72)}
 <dialog id="lickey">
   <div class="sheet">
     <h2>License key banao</h2>
+
+    <div class="field">
+      <label for="keyapp">Kaunsi app ke liye</label>
+      <select id="keyapp"></select>
+    </div>
 
     <div class="field">
       <label for="devcode">Customer ka device code</label>
@@ -255,7 +262,7 @@ let cfg = Object.assign({}, DEF, JSON.parse(localStorage.getItem(KEY) || '{}'));
 
 const ALPHA = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
 const BASE  = 1767225600000; // 2026-01-01 UTC
-let timer = null, poller = null, t0 = 0, madeKey = '';
+let timer = null, poller = null, t0 = 0, madeKey = '', apps = [];
 
 function saveCfg(){ localStorage.setItem(KEY, JSON.stringify(cfg)); }
 
@@ -377,20 +384,38 @@ async function loadReleases(fresh){
     return;
   }
   const rows = [];
-  rels.forEach((r, i) => {
+  apps = [];
+  for (let i = 0; i < rels.length; i++) {
+    const r = rels[i];
     const apk = (r.assets || []).find(a => a.name.toLowerCase().endsWith('.apk'));
-    if (!apk) return;
+    if (!apk) continue;
     const mb = (apk.size / 1048576).toFixed(1);
-    const locked = /License: lagi/.test(r.body || '') ? ' · license' : '';
+    const body = r.body || '';
+    const licensed = /License: lagi/.test(body);
+    const pkg = (/Package:\s*(\S+)/.exec(body) || [])[1];
+
+    if (pkg && !apps.some(a => a.pkg === pkg)) {
+      apps.push({ pkg: pkg, name: r.name.replace(/\s+v[\d.]+$/, '') });
+    }
+
+    let keyline = '';
+    if (licensed && pkg && cfg.secret) {
+      const k = await universalKey(pkg);
+      keyline = '<div class="keyline" data-k="' + k + '">' + k + '<span class="cp">copy</span></div>';
+    } else if (licensed) {
+      keyline = '<div class="keyline">Key ke liye settings me secret daalo</div>';
+    }
+
     rows.push(
       '<div class="rel' + (fresh && i === 0 ? ' fresh' : '') + '">' +
         '<div class="meta">' +
           '<div class="name">' + r.name + '</div>' +
-          '<div class="sub">' + ago(r.published_at) + ' · ' + mb + ' MB' + locked + '</div>' +
+          '<div class="sub">' + ago(r.published_at) + ' · ' + mb + ' MB' + (licensed ? ' · license' : '') + '</div>' +
+          keyline +
         '</div>' +
         '<a class="get" href="' + apk.browser_download_url + '" download>Install</a>' +
       '</div>');
-  });
+  }
   box.innerHTML = rows.length ? rows.join('') : '<p class="empty">Abhi koi APK nahi bana.</p>';
 }
 
@@ -418,6 +443,9 @@ async function makeKey(){
 
   if (!cfg.secret) { warn.textContent = 'Settings me license secret daalo.'; return; }
 
+  const pkg = $('#keyapp').value;
+  if (!pkg) { warn.textContent = 'Pehle app chuno. List khali ho to ek APK build kar lo.'; return; }
+
   const code = clean($('#devcode').value);
   if (code.length !== 8) { warn.textContent = 'Device code 8 akshar ka hota hai, jaise A7K3-92QD.'; return; }
 
@@ -444,15 +472,24 @@ async function makeKey(){
     till = d.toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric' }) + ' tak';
   }
 
-  const h = await hmacBytes(cfg.secret, code + '|' + exp);
+  const h = await hmacBytes(cfg.secret, code + '|' + pkg + '|' + exp);
   let sig = '';
   for (let i = 0; i < 9; i++) sig += ALPHA[h[i] & 31];
   const raw = exp + sig;
   madeKey = raw.slice(0,4) + '-' + raw.slice(4,8) + '-' + raw.slice(8,12);
 
+  const appName = (apps.find(a => a.pkg === pkg) || {}).name || '';
   $('#keytext').textContent = madeKey;
-  $('#keytill').textContent = till;
+  $('#keytill').textContent = appName + ' · ' + till;
   $('#keyout').classList.add('on');
+}
+
+async function universalKey(pkg){
+  const h = await hmacBytes(cfg.secret, 'U|' + pkg + '|ZZZ');
+  let sig = '';
+  for (let i = 0; i < 9; i++) sig += ALPHA[h[i] & 31];
+  const raw = 'ZZZ' + sig;
+  return raw.slice(0,4) + '-' + raw.slice(4,8) + '-' + raw.slice(8,12);
 }
 
 function copyKey(){
@@ -480,10 +517,23 @@ function openCfg(){
   $('#cfg').showModal();
 }
 
+$('#list').addEventListener('click', e => {
+  const el = e.target.closest('.keyline');
+  if (!el || !el.dataset.k) return;
+  navigator.clipboard.writeText(el.dataset.k).then(() => {
+    const c = el.querySelector('.cp');
+    if (c) { c.textContent = 'copy ho gayi'; setTimeout(() => { c.textContent = 'copy'; }, 2000); }
+  });
+});
+
 $('#gear').addEventListener('click', openCfg);
 $('#go').addEventListener('click', build);
 
 $('#keybtn').addEventListener('click', () => {
+  const sel = $('#keyapp');
+  sel.innerHTML = apps.length
+    ? apps.map(a => '<option value="' + a.pkg + '">' + a.name + '</option>').join('')
+    : '<option value="">Koi app nahi mili</option>';
   $('#keywarn').textContent = '';
   $('#keywarn').style.color = '';
   $('#keyout').classList.remove('on');
