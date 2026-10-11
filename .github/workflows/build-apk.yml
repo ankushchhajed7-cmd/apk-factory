@@ -293,6 +293,9 @@ jobs:
               <uses-permission android:name="android.permission.CAMERA" />
               <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
               <uses-permission android:name="android.permission.RECORD_AUDIO" />
+              <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+              <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+              <uses-feature android:name="android.hardware.location.gps" android:required="false" />
               <uses-feature android:name="android.hardware.camera" android:required="false" />
               <uses-feature android:name="android.hardware.sensor.stepcounter" android:required="false" />
 
@@ -722,6 +725,9 @@ jobs:
               private Uri camUri;
               private WebChromeClient.FileChooserParams pendingParams;
               private static final int STEP_PERM = 2003;
+              private static final int GEO_PERM = 2004;
+              private GeolocationPermissions.Callback geoCb;
+              private String geoOrigin;
               private SensorManager sensorMgr;
               private Sensor stepSensor;
               private boolean stepOn = false;
@@ -756,6 +762,7 @@ jobs:
                   WebSettings s = web.getSettings();
                   s.setJavaScriptEnabled(true);
                   s.setDomStorageEnabled(true);
+                  s.setGeolocationEnabled(true);
                   s.setDatabaseEnabled(true);
                   s.setAllowFileAccess(true);
                   s.setAllowContentAccess(true);
@@ -820,7 +827,17 @@ jobs:
 
                       @Override
                       public void onGeolocationPermissionsShowPrompt(String origin, GeolocationPermissions.Callback cb) {
-                          cb.invoke(origin, true, false);
+                          if (Build.VERSION.SDK_INT >= 23
+                                  && checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED
+                                  && checkSelfPermission(android.Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                              geoCb = cb;
+                              geoOrigin = origin;
+                              requestPermissions(new String[]{
+                                      android.Manifest.permission.ACCESS_FINE_LOCATION,
+                                      android.Manifest.permission.ACCESS_COARSE_LOCATION}, GEO_PERM);
+                          } else {
+                              cb.invoke(origin, true, false);
+                          }
                       }
 
                       @Override
@@ -895,6 +912,15 @@ jobs:
               @Override
               public void onRequestPermissionsResult(int req, String[] perms, int[] res) {
                   super.onRequestPermissionsResult(req, perms, res);
+                  if (req == GEO_PERM) {
+                      boolean gok = false;
+                      if (res != null) for (int r : res) if (r == PackageManager.PERMISSION_GRANTED) gok = true;
+                      if (geoCb != null) geoCb.invoke(geoOrigin, gok, false);
+                      geoCb = null;
+                      geoOrigin = null;
+                      if (!gok) toast("Location ki permission nahi mili - Settings > Apps mein Allow karo");
+                      return;
+                  }
                   if (req == STEP_PERM) {
                       boolean sok = res != null && res.length > 0 && res[0] == PackageManager.PERMISSION_GRANTED;
                       if (sok) startSteps();
