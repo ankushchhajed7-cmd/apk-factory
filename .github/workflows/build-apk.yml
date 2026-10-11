@@ -296,6 +296,10 @@ jobs:
               <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
               <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
               <uses-feature android:name="android.hardware.location.gps" android:required="false" />
+              <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+              <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+              <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+              <uses-permission android:name="android.permission.WAKE_LOCK" />
               <uses-feature android:name="android.hardware.camera" android:required="false" />
               <uses-feature android:name="android.hardware.sensor.stepcounter" android:required="false" />
 
@@ -327,6 +331,11 @@ jobs:
                       android:exported="false"
                       android:screenOrientation="$ORIENT"
                       android:windowSoftInputMode="adjustResize" />
+
+                  <service
+                      android:name=".GpsService"
+                      android:exported="false"
+                      android:foregroundServiceType="location" />
               </application>
           </manifest>
           EOF
@@ -726,6 +735,8 @@ jobs:
               private WebChromeClient.FileChooserParams pendingParams;
               private static final int STEP_PERM = 2003;
               private static final int GEO_PERM = 2004;
+              private static final int GEOSVC_PERM = 2005;
+              private boolean notifAsked = false;
               private GeolocationPermissions.Callback geoCb;
               private String geoOrigin;
               private SensorManager sensorMgr;
@@ -785,6 +796,7 @@ jobs:
                   web.addJavascriptInterface(new Saver(), "ANVSaver");
                   web.addJavascriptInterface(new ScreenIf(), "ANVScreen");
                   web.addJavascriptInterface(new StepsIf(), "ANVSteps");
+                  web.addJavascriptInterface(new GeoIf(), "ANVGeo");
 
                   web.setWebViewClient(new WebViewClient() {
                       @Override
@@ -912,6 +924,14 @@ jobs:
               @Override
               public void onRequestPermissionsResult(int req, String[] perms, int[] res) {
                   super.onRequestPermissionsResult(req, perms, res);
+                  if (req == GEOSVC_PERM) {
+                      if (locPermOk()) startGpsSvc();
+                      else {
+                          runJs("window.onAnvGeo&&window.onAnvGeo(false)");
+                          toast("Location ki permission nahi mili - background recording nahi hogi");
+                      }
+                      return;
+                  }
                   if (req == GEO_PERM) {
                       boolean gok = false;
                       if (res != null) for (int r : res) if (r == PackageManager.PERMISSION_GRANTED) gok = true;
@@ -1033,6 +1053,70 @@ jobs:
           
               private void permResult(boolean ok) { runJs("window.onAnvStepsPerm&&window.onAnvStepsPerm(" + ok + ")"); }
           
+              // ---- Background GPS (screen off par bhi raasta record) ----
+              private boolean locPermOk() {
+                  if (Build.VERSION.SDK_INT < 23) return true;
+                  return checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+                          || checkSelfPermission(android.Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED;
+              }
+
+              private void geoEnsureAndStart() {
+                  if (Build.VERSION.SDK_INT >= 23) {
+                      java.util.ArrayList<String> need = new java.util.ArrayList<String>();
+                      if (!locPermOk()) {
+                          need.add(android.Manifest.permission.ACCESS_FINE_LOCATION);
+                          need.add(android.Manifest.permission.ACCESS_COARSE_LOCATION);
+                      }
+                      if (Build.VERSION.SDK_INT >= 33 && !notifAsked
+                              && checkSelfPermission("android.permission.POST_NOTIFICATIONS") != PackageManager.PERMISSION_GRANTED) {
+                          notifAsked = true;
+                          need.add("android.permission.POST_NOTIFICATIONS");
+                      }
+                      if (!need.isEmpty()) {
+                          requestPermissions(need.toArray(new String[0]), GEOSVC_PERM);
+                          return;
+                      }
+                  }
+                  startGpsSvc();
+              }
+
+              private void startGpsSvc() {
+                  try {
+                      Intent i = new Intent(this, GpsService.class);
+                      if (Build.VERSION.SDK_INT >= 26) startForegroundService(i); else startService(i);
+                      runJs("window.onAnvGeo&&window.onAnvGeo(true)");
+                  } catch (Exception e) {
+                      runJs("window.onAnvGeo&&window.onAnvGeo(false)");
+                  }
+              }
+
+              public class GeoIf {
+                  @JavascriptInterface
+                  public boolean available() { return true; }
+
+                  @JavascriptInterface
+                  public boolean isRunning() { return GpsService.running; }
+
+                  @JavascriptInterface
+                  public String drain() { return GpsService.drain(MainActivity.this); }
+
+                  @JavascriptInterface
+                  public void start() {
+                      runOnUiThread(new Runnable() {
+                          @Override public void run() { geoEnsureAndStart(); }
+                      });
+                  }
+
+                  @JavascriptInterface
+                  public void stop() {
+                      runOnUiThread(new Runnable() {
+                          @Override public void run() {
+                              try { stopService(new Intent(MainActivity.this, GpsService.class)); } catch (Exception ignored) { }
+                          }
+                      });
+                  }
+              }
+
               public class StepsIf {
                   @JavascriptInterface
                   public boolean available() { initSteps(); return stepSensor != null; }
@@ -1250,6 +1334,155 @@ jobs:
                   super.onSaveInstanceState(out);
                   if (web != null) web.saveState(out);
               }
+          }
+          EOF
+
+          cat > android/app/src/main/java/com/anv/webapk/GpsService.java << 'EOF'
+          package com.anv.webapk;
+
+          import android.app.Notification;
+          import android.app.NotificationChannel;
+          import android.app.NotificationManager;
+          import android.app.PendingIntent;
+          import android.app.Service;
+          import android.content.Context;
+          import android.content.Intent;
+          import android.content.SharedPreferences;
+          import android.content.pm.ServiceInfo;
+          import android.location.Location;
+          import android.location.LocationListener;
+          import android.location.LocationManager;
+          import android.os.Build;
+          import android.os.Bundle;
+          import android.os.IBinder;
+          import android.os.Looper;
+          import android.os.PowerManager;
+
+          import org.json.JSONArray;
+
+          /** Foreground service: screen off / app background mein bhi GPS points jama karta hai. */
+          public class GpsService extends Service implements LocationListener {
+              private static final String CH = "anv_gps";
+              private static final String PREF = "anv_gps";
+              private static final int NOTIF_ID = 7701;
+              private static final Object LOCK = new Object();
+              private static JSONArray buf = null;
+              public static volatile boolean running = false;
+
+              private LocationManager lm;
+              private PowerManager.WakeLock wl;
+
+              private static void load(Context c) {
+                  if (buf != null) return;
+                  try {
+                      buf = new JSONArray(c.getSharedPreferences(PREF, Context.MODE_PRIVATE).getString("buf", "[]"));
+                  } catch (Exception e) {
+                      buf = new JSONArray();
+                  }
+              }
+
+              private static void save(Context c) {
+                  c.getSharedPreferences(PREF, Context.MODE_PRIVATE).edit().putString("buf", buf.toString()).apply();
+              }
+
+              /** Ab tak ke naye points JSON mein do aur buffer khali karo: [[lat,lng,acc,timeMs],...] */
+              public static String drain(Context c) {
+                  synchronized (LOCK) {
+                      load(c);
+                      String s = buf.toString();
+                      buf = new JSONArray();
+                      save(c);
+                      return s;
+                  }
+              }
+
+              @Override
+              public int onStartCommand(Intent intent, int flags, int startId) {
+                  if (!startFg()) {
+                      stopSelf();
+                      return START_NOT_STICKY;
+                  }
+                  if (!running) {
+                      running = true;
+                      synchronized (LOCK) { load(this); }
+                      lm = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+                      try {
+                          lm.requestLocationUpdates(LocationManager.GPS_PROVIDER, 2000L, 3f, this, Looper.getMainLooper());
+                      } catch (Exception ignored) { }
+                      try {
+                          if (lm.isProviderEnabled(LocationManager.NETWORK_PROVIDER))
+                              lm.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 5000L, 10f, this, Looper.getMainLooper());
+                      } catch (Exception ignored) { }
+                      try {
+                          PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
+                          wl = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "anv:gps");
+                          wl.acquire(8L * 60 * 60 * 1000);
+                      } catch (Exception ignored) { }
+                  }
+                  return START_STICKY;
+              }
+
+              private boolean startFg() {
+                  try {
+                      NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+                      if (Build.VERSION.SDK_INT >= 26) {
+                          nm.createNotificationChannel(new NotificationChannel(CH, "GPS Recording", NotificationManager.IMPORTANCE_LOW));
+                      }
+                      Intent open = new Intent(this, MainActivity.class);
+                      open.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+                      int pf = PendingIntent.FLAG_UPDATE_CURRENT;
+                      if (Build.VERSION.SDK_INT >= 23) pf |= PendingIntent.FLAG_IMMUTABLE;
+                      PendingIntent pi = PendingIntent.getActivity(this, 0, open, pf);
+                      Notification.Builder b = Build.VERSION.SDK_INT >= 26
+                              ? new Notification.Builder(this, CH) : new Notification.Builder(this);
+                      b.setContentTitle(getString(R.string.app_name))
+                       .setContentText("Raasta record ho raha hai - screen off kar sakte ho")
+                       .setSmallIcon(android.R.drawable.ic_menu_mylocation)
+                       .setOngoing(true)
+                       .setContentIntent(pi);
+                      Notification n = b.build();
+                      if (Build.VERSION.SDK_INT >= 29) startForeground(NOTIF_ID, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION);
+                      else startForeground(NOTIF_ID, n);
+                      return true;
+                  } catch (Exception e) {
+                      return false;
+                  }
+              }
+
+              @Override
+              public void onLocationChanged(Location l) {
+                  try {
+                      JSONArray p = new JSONArray();
+                      p.put(l.getLatitude());
+                      p.put(l.getLongitude());
+                      p.put(l.hasAccuracy() ? (double) l.getAccuracy() : 99.0);
+                      p.put(l.getTime());
+                      synchronized (LOCK) {
+                          load(this);
+                          buf.put(p);
+                          save(this);
+                      }
+                  } catch (Exception ignored) { }
+              }
+
+              @Override public void onStatusChanged(String provider, int status, Bundle extras) { }
+              @Override public void onProviderEnabled(String provider) { }
+              @Override public void onProviderDisabled(String provider) { }
+
+              @Override
+              public void onDestroy() {
+                  running = false;
+                  try { if (lm != null) lm.removeUpdates(this); } catch (Exception ignored) { }
+                  try { if (wl != null && wl.isHeld()) wl.release(); } catch (Exception ignored) { }
+                  try {
+                      if (Build.VERSION.SDK_INT >= 24) stopForeground(Service.STOP_FOREGROUND_REMOVE);
+                      else stopForeground(true);
+                  } catch (Exception ignored) { }
+                  super.onDestroy();
+              }
+
+              @Override
+              public IBinder onBind(Intent intent) { return null; }
           }
           EOF
 
