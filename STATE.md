@@ -3,6 +3,7 @@
 GitHub Pages / PWA URL → signed WebView APK (GitHub Actions). Files: `.github/workflows/build-apk.yml`, `config.json`, `keystore.jks`.
 
 ## Version history
+- **2026-10-18 — intent:// links fix**: `intent://…#Intent;package=…;end` ab `Intent.parseUri` se khulta hai (doosra app jaise MT5 kholne ke liye); app na ho to `browser_fallback_url` ya Play Store. Pehle ACTION_VIEW se "App nahi mila" aata tha.
 - **2026-10-18 — ANVAlert bridge** (MEXA SCALP ke liye, sab apps me available)
   - WebView me Web Speech / Notification API nahi hote — isliye native bridge `ANVAlert`:
     `speak()` (Android TextToSpeech, Hindi → English-India fallback), `notify()` (high-priority "Alerts" channel, tap par app khule),

@@ -1331,6 +1331,34 @@ jobs:
               }
 
               private void openOutside(String url) {
+                  // intent://...#Intent;package=...;end  (doosra app kholna, jaise MT5)
+                  if (url != null && url.toLowerCase(Locale.US).startsWith("intent:")) {
+                      Intent it = null;
+                      try {
+                          it = Intent.parseUri(url, Intent.URI_INTENT_SCHEME);
+                          it.addCategory(Intent.CATEGORY_BROWSABLE);
+                          it.setComponent(null);
+                          it.setSelector(null);
+                          it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                          startActivity(it);
+                          return;
+                      } catch (Exception e) {
+                          try {
+                              String fb = it != null ? it.getStringExtra("browser_fallback_url") : null;
+                              String pkg = it != null ? it.getPackage() : null;
+                              String alt = (fb != null && !fb.isEmpty()) ? fb
+                                      : (pkg != null ? "market://details?id=" + pkg : null);
+                              if (alt != null) {
+                                  Intent m = new Intent(Intent.ACTION_VIEW, Uri.parse(alt));
+                                  m.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                                  startActivity(m);
+                                  return;
+                              }
+                          } catch (Exception ignored) { }
+                          toast("App nahi mila");
+                          return;
+                      }
+                  }
                   try {
                       Intent i = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
                       i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
