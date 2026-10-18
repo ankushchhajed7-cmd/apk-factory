@@ -1336,7 +1336,6 @@ jobs:
                       Intent it = null;
                       try {
                           it = Intent.parseUri(url, Intent.URI_INTENT_SCHEME);
-                          it.addCategory(Intent.CATEGORY_BROWSABLE);
                           it.setComponent(null);
                           it.setSelector(null);
                           it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
