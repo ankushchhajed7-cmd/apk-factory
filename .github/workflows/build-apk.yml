@@ -300,6 +300,7 @@ jobs:
               <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
               <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
               <uses-permission android:name="android.permission.WAKE_LOCK" />
+              <uses-permission android:name="android.permission.VIBRATE" />
               <uses-feature android:name="android.hardware.camera" android:required="false" />
               <uses-feature android:name="android.hardware.sensor.stepcounter" android:required="false" />
 
@@ -678,6 +679,10 @@ jobs:
           import android.annotation.SuppressLint;
           import android.app.Activity;
           import android.app.DownloadManager;
+          import android.app.Notification;
+          import android.app.NotificationChannel;
+          import android.app.NotificationManager;
+          import android.app.PendingIntent;
           import android.content.ActivityNotFoundException;
           import android.content.ContentValues;
           import android.content.Context;
@@ -692,7 +697,10 @@ jobs:
           import android.os.Build;
           import android.os.Bundle;
           import android.os.Environment;
+          import android.os.VibrationEffect;
+          import android.os.Vibrator;
           import android.provider.MediaStore;
+          import android.speech.tts.TextToSpeech;
           import android.util.Base64;
           import android.view.KeyEvent;
           import android.view.ViewGroup;
@@ -737,6 +745,12 @@ jobs:
               private static final int GEO_PERM = 2004;
               private static final int GEOSVC_PERM = 2005;
               private boolean notifAsked = false;
+              private static final int ALERT_NOTIF_PERM = 2006;
+              private static final String ALERT_CH = "anv_alerts";
+              private TextToSpeech tts;
+              private boolean ttsOk = false;
+              private String ttsPending = null;
+              private int alertNotifId = 7000;
               private GeolocationPermissions.Callback geoCb;
               private String geoOrigin;
               private SensorManager sensorMgr;
@@ -797,6 +811,7 @@ jobs:
                   web.addJavascriptInterface(new ScreenIf(), "ANVScreen");
                   web.addJavascriptInterface(new StepsIf(), "ANVSteps");
                   web.addJavascriptInterface(new GeoIf(), "ANVGeo");
+                  web.addJavascriptInterface(new AlertIf(), "ANVAlert");
 
                   web.setWebViewClient(new WebViewClient() {
                       @Override
@@ -924,6 +939,12 @@ jobs:
               @Override
               public void onRequestPermissionsResult(int req, String[] perms, int[] res) {
                   super.onRequestPermissionsResult(req, perms, res);
+                  if (req == ALERT_NOTIF_PERM) {
+                      boolean nok = res != null && res.length > 0 && res[0] == PackageManager.PERMISSION_GRANTED;
+                      runJs("window.onAnvNotifPerm&&window.onAnvNotifPerm(" + nok + ")");
+                      if (!nok) toast("Notification ki permission nahi mili - Settings > Apps > Notifications me Allow karo");
+                      return;
+                  }
                   if (req == GEOSVC_PERM) {
                       if (locPermOk()) startGpsSvc();
                       else {
@@ -969,6 +990,140 @@ jobs:
                   }
               }
           
+              // ---------- ANVAlert: voice (TTS) + notification + vibrate ----------
+              // Page se: ANVAlert.speak("text"), ANVAlert.notify("title","body"),
+              // ANVAlert.vibrate("250,120,250"), ANVAlert.notifPerm() -> "granted"/"denied",
+              // ANVAlert.requestNotif(), ANVAlert.prepare() (TTS pehle se taiyar)
+              private void initTts() {
+                  if (tts != null) return;
+                  try {
+                      tts = new TextToSpeech(getApplicationContext(), new TextToSpeech.OnInitListener() {
+                          @Override public void onInit(int st) {
+                              if (st != TextToSpeech.SUCCESS || tts == null) return;
+                              int r = tts.setLanguage(new Locale("hi", "IN"));
+                              if (r == TextToSpeech.LANG_MISSING_DATA || r == TextToSpeech.LANG_NOT_SUPPORTED) {
+                                  tts.setLanguage(new Locale("en", "IN"));
+                              }
+                              ttsOk = true;
+                              if (ttsPending != null) { String p = ttsPending; ttsPending = null; doSpeak(p); }
+                          }
+                      });
+                  } catch (Exception e) { tts = null; }
+              }
+
+              private void doSpeak(String text) {
+                  if (tts == null || !ttsOk || text == null) return;
+                  try {
+                      if (Build.VERSION.SDK_INT >= 21) tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, "anv" + System.currentTimeMillis());
+                      else tts.speak(text, TextToSpeech.QUEUE_FLUSH, null);
+                  } catch (Exception ignored) { }
+              }
+
+              private boolean notifPermOk() {
+                  return Build.VERSION.SDK_INT < 33
+                          || checkSelfPermission("android.permission.POST_NOTIFICATIONS") == PackageManager.PERMISSION_GRANTED;
+              }
+
+              private void showAlertNotif(String title, String body) {
+                  try {
+                      NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+                      if (nm == null) return;
+                      if (Build.VERSION.SDK_INT >= 26 && nm.getNotificationChannel(ALERT_CH) == null) {
+                          NotificationChannel ch = new NotificationChannel(ALERT_CH, "Alerts", NotificationManager.IMPORTANCE_HIGH);
+                          ch.enableVibration(true);
+                          ch.setVibrationPattern(new long[]{0, 300, 120, 300, 120, 300});
+                          nm.createNotificationChannel(ch);
+                      }
+                      Intent open = new Intent(this, MainActivity.class);
+                      open.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+                      int pf = PendingIntent.FLAG_UPDATE_CURRENT;
+                      if (Build.VERSION.SDK_INT >= 23) pf |= PendingIntent.FLAG_IMMUTABLE;
+                      PendingIntent pi = PendingIntent.getActivity(this, 1, open, pf);
+                      Notification.Builder b = Build.VERSION.SDK_INT >= 26
+                              ? new Notification.Builder(this, ALERT_CH) : new Notification.Builder(this);
+                      b.setContentTitle(title).setContentText(body)
+                       .setStyle(new Notification.BigTextStyle().bigText(body))
+                       .setSmallIcon(android.R.drawable.ic_dialog_info)
+                       .setContentIntent(pi).setAutoCancel(true);
+                      if (Build.VERSION.SDK_INT < 26) {
+                          b.setPriority(Notification.PRIORITY_HIGH);
+                          b.setDefaults(Notification.DEFAULT_ALL);
+                      }
+                      nm.notify(alertNotifId++, b.build());
+                  } catch (Exception ignored) { }
+              }
+
+              public class AlertIf {
+                  @JavascriptInterface
+                  public boolean ready() { return true; }
+
+                  @JavascriptInterface
+                  public void prepare() {
+                      runOnUiThread(new Runnable() { @Override public void run() { initTts(); } });
+                  }
+
+                  @JavascriptInterface
+                  public boolean ttsReady() { return ttsOk; }
+
+                  @JavascriptInterface
+                  public void speak(final String text) {
+                      runOnUiThread(new Runnable() {
+                          @Override public void run() {
+                              if (ttsOk) doSpeak(text);
+                              else { ttsPending = text; initTts(); }
+                          }
+                      });
+                  }
+
+                  @JavascriptInterface
+                  public void stopSpeak() {
+                      runOnUiThread(new Runnable() { @Override public void run() { try { if (tts != null) tts.stop(); } catch (Exception ignored) { } } });
+                  }
+
+                  @JavascriptInterface
+                  public String notifPerm() { return notifPermOk() ? "granted" : "denied"; }
+
+                  @JavascriptInterface
+                  public void requestNotif() {
+                      runOnUiThread(new Runnable() {
+                          @Override public void run() {
+                              if (notifPermOk()) { runJs("window.onAnvNotifPerm&&window.onAnvNotifPerm(true)"); return; }
+                              if (Build.VERSION.SDK_INT >= 23) requestPermissions(new String[]{"android.permission.POST_NOTIFICATIONS"}, ALERT_NOTIF_PERM);
+                          }
+                      });
+                  }
+
+                  @JavascriptInterface
+                  public boolean notify(final String title, final String body) {
+                      if (!notifPermOk()) return false;
+                      runOnUiThread(new Runnable() { @Override public void run() { showAlertNotif(title, body); } });
+                      return true;
+                  }
+
+                  @JavascriptInterface
+                  public boolean vibrate(final String csv) {
+                      try {
+                          Vibrator v = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
+                          if (v == null || !v.hasVibrator()) return false;
+                          String[] parts = (csv == null ? "300" : csv).split(",");
+                          long[] pat = new long[parts.length + 1];
+                          pat[0] = 0;
+                          for (int i = 0; i < parts.length; i++) {
+                              try { pat[i + 1] = Math.max(0, Math.min(5000, Long.parseLong(parts[i].trim()))); } catch (Exception e) { pat[i + 1] = 0; }
+                          }
+                          if (Build.VERSION.SDK_INT >= 26) v.vibrate(VibrationEffect.createWaveform(pat, -1));
+                          else v.vibrate(pat, -1);
+                          return true;
+                      } catch (Exception e) { return false; }
+                  }
+              }
+
+              @Override
+              protected void onDestroy() {
+                  try { if (tts != null) { tts.stop(); tts.shutdown(); tts = null; } } catch (Exception ignored) { }
+                  super.onDestroy();
+              }
+
               // ---------- Phone ka step counter chip (app band ho tab bhi chip ginta hai) ----------
               private void initSteps() {
                   if (sensorMgr == null) {
