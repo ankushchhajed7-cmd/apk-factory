@@ -746,6 +746,8 @@ jobs:
               private static final int GEOSVC_PERM = 2005;
               private boolean notifAsked = false;
               private static final int ALERT_NOTIF_PERM = 2006;
+              private static final int MEDIA_PERM = 2007;
+              private PermissionRequest pendingWebPerm;
               private static final String ALERT_CH = "anv_alerts";
               private TextToSpeech tts;
               private boolean ttsOk = false;
@@ -870,7 +872,7 @@ jobs:
                       @Override
                       public void onPermissionRequest(final PermissionRequest request) {
                           runOnUiThread(new Runnable() {
-                              @Override public void run() { request.grant(request.getResources()); }
+                              @Override public void run() { handleWebPerm(request); }
                           });
                       }
                   });
@@ -936,9 +938,38 @@ jobs:
                   camUri = null;
               }
           
+              // ---------- Web page mic/camera (getUserMedia) ----------
+              // Page mic maange to pehle Android runtime permission (RECORD_AUDIO / CAMERA) lo, phir WebView ko grant karo.
+              private void handleWebPerm(PermissionRequest request) {
+                  java.util.List<String> need = new java.util.ArrayList<>();
+                  for (String r : request.getResources()) {
+                      if (PermissionRequest.RESOURCE_AUDIO_CAPTURE.equals(r) && Build.VERSION.SDK_INT >= 23
+                              && checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED)
+                          need.add(android.Manifest.permission.RECORD_AUDIO);
+                      if (PermissionRequest.RESOURCE_VIDEO_CAPTURE.equals(r) && Build.VERSION.SDK_INT >= 23
+                              && checkSelfPermission(android.Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED)
+                          need.add(android.Manifest.permission.CAMERA);
+                  }
+                  if (need.isEmpty()) { request.grant(request.getResources()); return; }
+                  if (pendingWebPerm != null) { try { pendingWebPerm.deny(); } catch (Exception e) {} }
+                  pendingWebPerm = request;
+                  requestPermissions(need.toArray(new String[0]), MEDIA_PERM);
+              }
+
               @Override
               public void onRequestPermissionsResult(int req, String[] perms, int[] res) {
                   super.onRequestPermissionsResult(req, perms, res);
+                  if (req == MEDIA_PERM) {
+                      PermissionRequest pr = pendingWebPerm;
+                      pendingWebPerm = null;
+                      boolean all = res != null && res.length > 0;
+                      if (res != null) for (int r : res) if (r != PackageManager.PERMISSION_GRANTED) all = false;
+                      if (pr != null) {
+                          try { if (all) pr.grant(pr.getResources()); else pr.deny(); } catch (Exception e) {}
+                      }
+                      if (!all) toast("Mic ki permission nahi mili - Settings > Apps > Permissions me Microphone Allow karo");
+                      return;
+                  }
                   if (req == ALERT_NOTIF_PERM) {
                       boolean nok = res != null && res.length > 0 && res[0] == PackageManager.PERMISSION_GRANTED;
                       runJs("window.onAnvNotifPerm&&window.onAnvNotifPerm(" + nok + ")");
